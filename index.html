@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2747B8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Villa Waschküche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+/* ── EINSTELLUNGEN / SETTINGS ───────────────────────────────────────────
+   Supabase → Project Settings → API (Data API):
+   paste the Project URL and the anon / publishable key here.        */
+const SUPABASE_URL = "https://gxehkmdcyslofsmjdwnz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_bRbe3EqtuEq8xan5blHODw_p_EsrWkO";   // public key, safe in the page
+</script>
+<style>
+/* Layout: one column of two machine cards, then a day-tab calendar, then activity. */
+:root{
+  --bg:#E9EEF2; --surface:#FFFFFF; --ink:#18212C; --muted:#5B6878; --line:#CDD6DF;
+  --accent:#2747B8; --accent-ink:#FFFFFF;
+  --free:#23845A; --free-bg:#DDF1E7; --run:#B86E0A; --run-bg:#FBEBD0; --done:#BF3A15; --done-bg:#FADFD6;
+  --book:#DCE3FA; --book-ink:#1F3A9A;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#10161D; --surface:#19222C; --ink:#E6ECF2; --muted:#93A1B1; --line:#2C3946;
+  --accent:#7D9BFF; --accent-ink:#0D1530;
+  --free:#5FD39C; --free-bg:#123426; --run:#F2B04B; --run-bg:#3A2A0F; --done:#FF8A66; --done-bg:#40190E;
+  --book:#22305E; --book-ink:#C3D0FF; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-weight:800;font-size:1.7rem;letter-spacing:-.01em;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.15rem;margin:0}
+.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:.9rem}
+select,input,button{font:inherit;color:inherit}
+select,input[type=text],input[type=password],input[type=number],input[type=time]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+button{cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;font-weight:700}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{background:transparent}
+button.link{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;font-weight:400}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.banner{background:var(--done-bg);color:var(--done);border-radius:10px;padding:10px 14px;font-weight:700}
+.machines{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.mc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.mc .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.mc .name{font-family:var(--f-display);font-weight:800;font-size:1.3rem}
+.pill{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:4px 10px;white-space:nowrap}
+.pill.free{background:var(--free-bg);color:var(--free)} .pill.run{background:var(--run-bg);color:var(--run)} .pill.done{background:var(--done-bg);color:var(--done)}
+.big{font-family:var(--f-mono);font-size:2rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.sub{color:var(--muted);font-size:.9rem}
+.bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--run)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.next{font-size:.88rem;background:var(--book);color:var(--book-ink);border-radius:8px;padding:6px 10px}
+.warn{font-size:.88rem;color:var(--done);font-weight:700}
+.sheet{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:99px;padding:6px 12px;font-weight:700;font-size:.88rem}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip small{font-family:var(--f-mono);font-weight:500;opacity:.8;margin-left:4px}
+label.fld{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);font-weight:700}
+.cal{display:flex;flex-direction:column;gap:14px}
+.days{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.day{flex:0 0 auto;min-width:64px;text-align:center;padding:6px 10px}
+.day[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.lane{display:flex;flex-direction:column;gap:6px}
+.lane h3{margin:0;font-size:.92rem}
+.track{position:relative;height:30px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.blk{position:absolute;top:3px;bottom:3px;border-radius:5px;background:var(--book);color:var(--book-ink);font-size:.72rem;font-weight:700;padding:0 5px;overflow:hidden;white-space:nowrap;line-height:24px}
+.blk.mine{background:var(--accent);color:var(--accent-ink)}
+.nowline{position:absolute;top:0;bottom:0;width:2px;background:var(--done)}
+.ticks{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:.7rem;color:var(--muted)}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.list li{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.list .t{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.list button{padding:4px 10px;font-size:.82rem}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.chk{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.msg{font-size:.88rem;font-weight:700} .msg.ok{color:var(--free)} .msg.err{color:var(--done)}
+.act{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.stats{display:flex;flex-direction:column;gap:6px}
+.stat{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
+.stat b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.log{font-size:.88rem;color:var(--muted)}
+.log li{background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:6px 0}
+.empty{color:var(--muted);font-size:.9rem}
+.login{max-width:380px;margin:12vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.qrs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.qr{background:#fff;color:#111;border-radius:12px;padding:16px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center}
+.qr svg{width:100%;max-width:240px;height:auto}
+.qr b{font-family:var(--f-display);font-size:1.3rem;letter-spacing:.04em}
+@media print{body{background:#fff}.wrap>*:not(#qrSec){display:none!important}#qrSec .row{display:none}.qr{border:1px solid #999;break-inside:avoid}}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .6s}}
+</style>
+</head>
+<body>
+<div id="loginView" class="wrap" hidden>
+  <form class="login" id="loginForm">
+    <h1>Villa Waschküche</h1>
+    <select id="lang0" aria-label="Language"></select>
+    <label class="fld"><span id="lCode"></span><input id="code" type="password" autocomplete="current-password" required></label>
+    <label class="fld"><span id="lName"></span><input id="name0" type="text" maxlength="20" autocomplete="nickname" required></label>
+    <button class="primary" id="loginBtn" type="submit"></button>
+    <div class="msg err" id="loginMsg" hidden></div>
+  </form>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <header>
+    <h1>Villa Waschküche</h1>
+    <div class="who">
+      <select id="lang" aria-label="Language"></select>
+      <span id="meLbl"></span>
+      <input id="me" type="text" maxlength="20" style="width:120px">
+      <button class="link" id="logout" type="button"></button>
+    </div>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+
+  <section class="machines" id="machines"></section>
+  <label class="chk"><input id="notify" type="checkbox"> <span id="lNotify"></span></label>
+
+  <section class="cal">
+    <h2 id="calH"></h2>
+    <div class="days" id="days"></div>
+    <div id="lanes" style="display:flex;flex-direction:column;gap:14px"></div>
+    <form class="form" id="bform">
+      <label class="fld"><span id="lMach"></span><select id="bMach"></select></label>
+      <label class="fld"><span id="lTime"></span><input id="bTime" type="time" value="18:00" required></label>
+      <label class="fld"><span id="lDur"></span><select id="bDur"></select></label>
+      <label class="chk"><input id="bWeekly" type="checkbox"> <span id="lWeekly"></span></label>
+      <button class="primary" id="bBtn" type="submit"></button>
+      <div class="msg" id="bMsg" style="grid-column:1/-1" hidden></div>
+    </form>
+  </section>
+
+  <section class="act">
+    <div class="stats"><h2 id="statH"></h2><div id="stats"></div></div>
+    <div><h2 id="logH"></h2><ul class="list log" id="log"></ul></div>
+  </section>
+
+  <section id="qrSec" class="cal">
+    <div class="row" style="justify-content:space-between"><h2 id="qrH"></h2><button id="qrBtn" type="button"></button></div>
+    <div id="qrBox" hidden>
+      <p class="sub" id="qrHint"></p>
+      <div class="qrs" id="qrs"></div>
+      <div class="row" style="margin-top:10px"><button id="printBtn" type="button"></button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const T={
+ en:{washer:"Washing machine",dryer:"Dryer",free:"Free",run:"Running",done:"Finished",left:"min left",readyAt:"Ready at",by:"by",doneAgo:"Finished {n} min ago – please empty",start:"I started it",emptied:"Emptied – free",add15:"+15 min",go:"Start",cancel:"Cancel",custom:"Minutes",name:"Your name",
+  quick:"Quick",synth:"Synthetics",cotton:"Cotton",eco:"Eco",d1:"Short",d2:"Normal",d3:"Extra dry",
+  cal:"Bookings",mach:"Machine",time:"Start",dur:"Duration",weekly:"Every week",book:"Book",booked:"Booked.",overlap:"Overlaps with {who} at {t}.",taken:"This time is already booked.",past:"That time has already passed.",del:"Delete",none:"No bookings this day.",next:"Booked: {who} at {t}",clash:"Heads-up: {who} booked this machine at {t}.",
+  stats:"This week",loads:"loads",log:"Activity",nolog:"Nothing yet.",aStart:"started",aFree:"emptied",aBook:"booked",aUnbook:"cancelled a booking for",me:"Me:",weeklyTag:"weekly",
+  code:"House code",login:"Enter",badCode:"Wrong house code.",logout:"Log out",offline:"No connection. Retrying…",err:"Something went wrong. Try again.",setup:"Not set up yet: paste the Supabase URL and key into index.html.",
+  notify:"Notify me on this device when my laundry is done",notifDone:"Your laundry is done: {m}",qr:"QR codes",showQr:"Show",qrHint:"Print and stick on the machines. Scanning opens the start panel for that machine.",print:"Print"},
+ de:{washer:"Waschmaschine",dryer:"Trockner",free:"Frei",run:"Läuft",done:"Fertig",left:"Min übrig",readyAt:"Fertig um",by:"von",doneAgo:"Seit {n} Min fertig – bitte ausräumen",start:"Ich habe gestartet",emptied:"Ausgeräumt – frei",add15:"+15 Min",go:"Starten",cancel:"Abbrechen",custom:"Minuten",name:"Dein Name",
+  quick:"Kurz",synth:"Pflegeleicht",cotton:"Baumwolle",eco:"Eco",d1:"Kurz",d2:"Normal",d3:"Extra trocken",
+  cal:"Buchungen",mach:"Gerät",time:"Beginn",dur:"Dauer",weekly:"Jede Woche",book:"Buchen",booked:"Gebucht.",overlap:"Überschneidet sich mit {who} um {t}.",taken:"Diese Zeit ist schon gebucht.",past:"Diese Zeit ist schon vorbei.",del:"Löschen",none:"Keine Buchungen an diesem Tag.",next:"Gebucht: {who} um {t}",clash:"Achtung: {who} hat das Gerät um {t} gebucht.",
+  stats:"Diese Woche",loads:"Ladungen",log:"Verlauf",nolog:"Noch nichts.",aStart:"hat gestartet:",aFree:"hat ausgeräumt:",aBook:"hat gebucht:",aUnbook:"hat eine Buchung gelöscht:",me:"Ich:",weeklyTag:"wöchentlich",
+  code:"Hauscode",login:"Weiter",badCode:"Falscher Hauscode.",logout:"Abmelden",offline:"Keine Verbindung. Neuer Versuch…",err:"Etwas ist schiefgelaufen. Bitte nochmal.",setup:"Noch nicht eingerichtet: Supabase-URL und Key in index.html einfügen.",
+  notify:"Auf diesem Gerät benachrichtigen, wenn meine Wäsche fertig ist",notifDone:"Deine Wäsche ist fertig: {m}",qr:"QR-Codes",showQr:"Anzeigen",qrHint:"Ausdrucken und auf die Geräte kleben. Scannen öffnet direkt das Start-Feld.",print:"Drucken"},
+ es:{washer:"Lavadora",dryer:"Secadora",free:"Libre",run:"En marcha",done:"Terminado",left:"min restantes",readyAt:"Lista a las",by:"de",doneAgo:"Terminó hace {n} min – por favor vacíala",start:"La he puesto",emptied:"Vaciada – libre",add15:"+15 min",go:"Iniciar",cancel:"Cancelar",custom:"Minutos",name:"Tu nombre",
+  quick:"Rápido",synth:"Sintéticos",cotton:"Algodón",eco:"Eco",d1:"Corto",d2:"Normal",d3:"Extra seco",
+  cal:"Reservas",mach:"Máquina",time:"Inicio",dur:"Duración",weekly:"Cada semana",book:"Reservar",booked:"Reservado.",overlap:"Se solapa con {who} a las {t}.",taken:"Esta hora ya está reservada.",past:"Esa hora ya pasó.",del:"Borrar",none:"No hay reservas este día.",next:"Reservado: {who} a las {t}",clash:"Ojo: {who} reservó esta máquina a las {t}.",
+  stats:"Esta semana",loads:"cargas",log:"Actividad",nolog:"Nada todavía.",aStart:"puso",aFree:"vació",aBook:"reservó",aUnbook:"canceló una reserva de",me:"Yo:",weeklyTag:"semanal",
+  code:"Código de la casa",login:"Entrar",badCode:"Código incorrecto.",logout:"Salir",offline:"Sin conexión. Reintentando…",err:"Algo salió mal. Inténtalo de nuevo.",setup:"Aún no configurado: pega la URL y la clave de Supabase en index.html.",
+  notify:"Avisarme en este dispositivo cuando mi ropa esté lista",notifDone:"Tu ropa está lista: {m}",qr:"Códigos QR",showQr:"Mostrar",qrHint:"Imprímelos y pégalos en las máquinas. Al escanear se abre el panel de inicio.",print:"Imprimir"},
+ uk:{washer:"Пральна машина",dryer:"Сушарка",free:"Вільно",run:"Працює",done:"Готово",left:"хв залишилось",readyAt:"Готово о",by:"—",doneAgo:"Готово {n} хв тому – будь ласка, вийми речі",start:"Я запустив(ла)",emptied:"Вийняв(ла) – вільно",add15:"+15 хв",go:"Запустити",cancel:"Скасувати",custom:"Хвилини",name:"Твоє ім'я",
+  quick:"Швидко",synth:"Синтетика",cotton:"Бавовна",eco:"Еко",d1:"Коротко",d2:"Звичайно",d3:"Дуже сухо",
+  cal:"Бронювання",mach:"Машина",time:"Початок",dur:"Тривалість",weekly:"Щотижня",book:"Забронювати",booked:"Заброньовано.",overlap:"Перетинається з {who} о {t}.",taken:"Цей час уже заброньовано.",past:"Цей час уже минув.",del:"Видалити",none:"Цього дня бронювань немає.",next:"Заброньовано: {who} о {t}",clash:"Увага: {who} забронював(ла) цю машину на {t}.",
+  stats:"Цього тижня",loads:"прань",log:"Активність",nolog:"Поки нічого.",aStart:"запустив(ла):",aFree:"вийняв(ла):",aBook:"забронював(ла):",aUnbook:"скасував(ла) бронювання:",me:"Я:",weeklyTag:"щотижня",
+  code:"Код будинку",login:"Увійти",badCode:"Неправильний код.",logout:"Вийти",offline:"Немає з'єднання. Повторюю…",err:"Щось пішло не так. Спробуй ще раз.",setup:"Ще не налаштовано: встав URL і ключ Supabase в index.html.",
+  notify:"Сповістити на цьому пристрої, коли прання готове",notifDone:"Твоє прання готове: {m}",qr:"QR-коди",showQr:"Показати",qrHint:"Роздрукуй і наклей на машини. Сканування відкриває панель запуску.",print:"Друкувати"},
+ zh:{washer:"洗衣机",dryer:"烘干机",free:"空闲",run:"运行中",done:"已完成",left:"分钟剩余",readyAt:"完成时间",by:"使用者",doneAgo:"已完成 {n} 分钟 – 请取出衣物",start:"我已启动",emptied:"已取出 – 空闲",add15:"+15 分钟",go:"启动",cancel:"取消",custom:"分钟",name:"你的名字",
+  quick:"快洗",synth:"化纤",cotton:"棉织物",eco:"节能",d1:"短",d2:"标准",d3:"特干",
+  cal:"预约",mach:"机器",time:"开始",dur:"时长",weekly:"每周",book:"预约",booked:"已预约。",overlap:"与 {who} 的 {t} 预约冲突。",taken:"这个时间已被预约。",past:"这个时间已经过去了。",del:"删除",none:"当天没有预约。",next:"已预约：{who} {t}",clash:"注意：{who} 预约了 {t} 使用这台机器。",
+  stats:"本周",loads:"次",log:"动态",nolog:"暂无记录。",aStart:"启动了",aFree:"取出了",aBook:"预约了",aUnbook:"取消了预约：",me:"我：",weeklyTag:"每周",
+  code:"房屋密码",login:"进入",badCode:"密码错误。",logout:"退出",offline:"无连接，正在重试…",err:"出错了，请重试。",setup:"尚未设置：请在 index.html 中填入 Supabase 的 URL 和密钥。",
+  notify:"衣物完成时在此设备上通知我",notifDone:"你的衣物已完成：{m}",qr:"二维码",showQr:"显示",qrHint:"打印并贴在机器上。扫码可直接打开启动面板。",print:"打印"},
+ hu:{washer:"Mosógép",dryer:"Szárító",free:"Szabad",run:"Megy",done:"Kész",left:"perc van hátra",readyAt:"Kész lesz",by:"–",doneAgo:"{n} perce kész – vedd ki",start:"Elindítottam",emptied:"Kivettem – szabad",add15:"+15 perc",go:"Indítás",cancel:"Mégse",custom:"Perc",name:"Neved",
+  quick:"Gyors",synth:"Műszálas",cotton:"Pamut",eco:"Eco",d1:"Rövid",d2:"Normál",d3:"Extra száraz",
+  cal:"Foglalások",mach:"Gép",time:"Kezdés",dur:"Időtartam",weekly:"Minden héten",book:"Foglalás",booked:"Lefoglalva.",overlap:"Ütközik: {who}, {t}.",taken:"Ez az időpont már foglalt.",past:"Ez az időpont már elmúlt.",del:"Törlés",none:"Erre a napra nincs foglalás.",next:"Foglalva: {who}, {t}",clash:"Figyelem: {who} lefoglalta ezt a gépet {t}-ra.",
+  stats:"Ezen a héten",loads:"mosás",log:"Napló",nolog:"Még semmi.",aStart:"elindította:",aFree:"kivette:",aBook:"lefoglalta:",aUnbook:"törölt egy foglalást:",me:"Én:",weeklyTag:"heti",
+  code:"Házkód",login:"Belépés",badCode:"Hibás házkód.",logout:"Kilépés",offline:"Nincs kapcsolat. Újrapróbálom…",err:"Hiba történt. Próbáld újra.",setup:"Még nincs beállítva: másold be a Supabase URL-t és kulcsot az index.html-be.",
+  notify:"Értesítés ezen az eszközön, ha kész a mosásom",notifDone:"Kész a mosásod: {m}",qr:"QR kódok",showQr:"Mutasd",qrHint:"Nyomtasd ki és ragaszd a gépekre. Szkenneléskor rögtön az indító panel nyílik meg.",print:"Nyomtatás"}
+};
+const LANGS=[["en","English"],["de","Deutsch"],["es","Español"],["uk","Українська"],["zh","中文"],["hu","Magyar"]];
+const PROGS={washer:[["quick",30],["synth",80],["cotton",120],["eco",180]],dryer:[["d1",60],["d2",90],["d3",120]]};
+const DURS=[30,45,60,80,90,120,150,180];
+const M=["washer","dryer"];
+const st={lang:"en",me:"",code:"",machines:{},bookings:[],log:[],offset:0,day:0,open:null,prog:{},custom:{},busy:false,notified:new Set(),loaded:false};
+
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+const t=(k,p={})=>{let s=(T[st.lang]&&T[st.lang][k])||T.en[k]||k;for(const x in p)s=s.replace("{"+x+"}",p[x]);return s};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const now=()=>Date.now()+st.offset;
+const loc=()=>({zh:"zh-CN",uk:"uk-UA",hu:"hu-HU",de:"de-CH",es:"es-ES",en:"en-GB"})[st.lang];
+const hm=ms=>new Date(ms).toLocaleTimeString(loc(),{hour:"2-digit",minute:"2-digit"});
+const fmtDur=m=>m>=60?`${Math.floor(m/60)}h${m%60?String(m%60).padStart(2,"0"):""}`:`${m}′`;
+function dayStart(off){const d=new Date(now());d.setHours(0,0,0,0);d.setDate(d.getDate()+off);return d.getTime()}
+
+// ── API ────────────────────────────────────────────────────────────────
+const configured=()=>/^https:\/\//.test(SUPABASE_URL)&&!/PASTE/.test(SUPABASE_KEY);
+async function api(fn,args){
+  const h={"Content-Type":"application/json",apikey:SUPABASE_KEY};
+  if(SUPABASE_KEY.startsWith("eyJ"))h.Authorization="Bearer "+SUPABASE_KEY;
+  let r;
+  try{r=await fetch(SUPABASE_URL.replace(/\/$/,"")+"/rest/v1/rpc/"+fn,{method:"POST",headers:h,body:JSON.stringify({p_code:st.code,...args})})}
+  catch(e){const er=new Error("offline");er.kind="offline";throw er}
+  const txt=await r.text();let body=null;try{body=txt?JSON.parse(txt):null}catch(e){}
+  if(!r.ok){const er=new Error((body&&body.message)||("HTTP "+r.status));er.kind=(body&&body.message)||"http";throw er}
+  return body;
+}
+async function refresh(){
+  if(!st.code)return;
+  try{
+    const d=await api("wq_state",{});
+    st.offset=d.now-Date.now();st.machines=d.machines||{};st.bookings=d.bookings||[];st.log=d.log||[];
+    $("banner").hidden=true;
+    if(!st.loaded){st.loaded=true;for(const id of M){const m=st.machines[id];if(m&&m.state==="running"&&m.endsAt<=now())st.notified.add(id+m.startedAt)}}
+    render();
+  }catch(e){
+    if(e.kind==="bad_code"){logout(t("badCode"));return}
+    $("banner").textContent=t("offline");$("banner").hidden=false;
+  }
+}
+
+// ── Model helpers ──────────────────────────────────────────────────────
+function occ(a,b,machine){
+  const out=[];
+  for(const bk of st.bookings){
+    if(machine&&bk.machine!==machine)continue;
+    const dur=(bk.dur||60)*60000;
+    if(!bk.weekly){if(bk.start<b&&bk.start+dur>a)out.push({...bk,s:bk.start,e:bk.start+dur});continue}
+    const d=new Date(bk.start);
+    for(let k=0;k<400;k++){const s=d.getTime();if(s>=b)break;if(s+dur>a)out.push({...bk,s,e:s+dur});d.setDate(d.getDate()+7)}
+  }
+  return out.sort((x,y)=>x.s-y.s);
+}
+function machineState(id){const m=st.machines[id]||{};if(m.state==="running"&&m.endsAt)return now()<m.endsAt?"run":"done";return "free"}
+
+// ── Render ─────────────────────────────────────────────────────────────
+function renderStatic(){
+  document.documentElement.lang=st.lang;
+  const opts=LANGS.map(([v,n])=>`<option value="${v}">${n}</option>`).join("");
+  for(const s of [$("lang"),$("lang0")]){if(!s.options.length)s.innerHTML=opts;s.value=st.lang}
+  $("lCode").textContent=t("code");$("lName").textContent=t("name");$("loginBtn").textContent=t("login");
+  $("meLbl").textContent=t("me");$("me").placeholder=t("name");$("logout").textContent=t("logout");
+  $("lNotify").textContent=t("notify");
+  $("calH").textContent=t("cal");$("lMach").textContent=t("mach");$("lTime").textContent=t("time");
+  $("lDur").textContent=t("dur");$("lWeekly").textContent=t("weekly");$("bBtn").textContent=t("book");
+  $("statH").textContent=t("stats");$("logH").textContent=t("log");
+  $("qrH").textContent=t("qr");$("qrBtn").textContent=t("showQr");$("qrHint").textContent=t("qrHint");$("printBtn").textContent=t("print");
+  const bm=$("bMach").value;$("bMach").innerHTML=M.map(m=>`<option value="${m}">${t(m)}</option>`).join("");if(bm)$("bMach").value=bm;
+  const bd=$("bDur").value||"90";$("bDur").innerHTML=DURS.map(d=>`<option value="${d}">${fmtDur(d)}</option>`).join("");$("bDur").value=bd;
+  if(!$("qrBox").hidden)renderQr();
+}
+function renderMachines(){
+  const n=now();
+  $("machines").innerHTML=M.map(id=>{
+    const m=st.machines[id]||{};const s=machineState(id);
+    const nx=occ(n,n+12*3600e3,id).filter(o=>o.e>n)[0];
+    let body="";
+    if(s==="run"){
+      const left=Math.max(1,Math.ceil((m.endsAt-n)/60000));const pct=Math.min(100,(n-m.startedAt)/(m.endsAt-m.startedAt)*100);
+      body=`<div class="big">${left}<span class="sub"> ${t("left")}</span></div><div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+      <div class="sub">${t("readyAt")} <b>${hm(m.endsAt)}</b> · ${t("by")} <b>${esc(m.user)}</b>${m.prog?" · "+esc(t(m.prog)):""}</div>`;
+    }else if(s==="done"){
+      body=`<div class="warn">${t("doneAgo",{n:Math.floor((n-m.endsAt)/60000)})}</div><div class="sub">${t("by")} <b>${esc(m.user)}</b> · ${hm(m.startedAt)}–${hm(m.endsAt)}</div>`;
+    }else body=`<div class="big" style="color:var(--free)">${t("free")}</div>`;
+    if(nx)body+=`<div class="next">${t("next",{who:esc(nx.user),t:hm(nx.s)})}</div>`;
+    let acts;
+    if(s==="run")acts=`<button type="button" data-a="add" data-m="${id}">${t("add15")}</button><button type="button" data-a="free" data-m="${id}">${t("emptied")}</button>`;
+    else if(s==="done")acts=`<button type="button" class="primary" data-a="free" data-m="${id}">${t("emptied")}</button><button type="button" data-a="open" data-m="${id}">${t("start")}</button>`;
+    else acts=`<button type="button" class="primary" data-a="open" data-m="${id}">${t("start")}</button>`;
+    let sheet="";
+    if(st.open===id){
+      const sel=st.prog[id]||(id==="washer"?"cotton":"d2");st.prog[id]=sel;
+      const mins=st.custom[id]||PROGS[id].find(p=>p[0]===sel)[1];
+      const clash=occ(n,n+mins*60000,id).find(o=>o.user!==st.me);
+      sheet=`<div class="sheet">
+        <div class="chips">${PROGS[id].map(([k,d])=>`<button type="button" class="chip" aria-pressed="${sel===k&&!st.custom[id]}" data-a="prog" data-m="${id}" data-p="${k}">${t(k)}<small>${fmtDur(d)}</small></button>`).join("")}</div>
+        <label class="fld">${t("custom")}<input id="cus-${id}" type="number" min="5" max="400" step="5" value="${mins}" style="width:110px"></label>
+        ${clash?`<div class="warn">${t("clash",{who:esc(clash.user),t:hm(clash.s)})}</div>`:""}
+        <div class="row"><button type="button" class="primary" data-a="go" data-m="${id}">${t("go")}</button><button type="button" class="ghost" data-a="close">${t("cancel")}</button></div>
+        <div class="msg err" id="err-${id}" hidden></div></div>`;
+    }
+    const pill=`<span class="pill ${s}">${t(s)}</span>`;
+    return `<article class="mc" id="m-${id}"><div class="top"><span class="name">${t(id)}</span>${pill}</div>${body}<div class="row">${acts}</div>${sheet}</article>`;
+  }).join("");
+}
+function renderCal(){
+  $("days").innerHTML=Array.from({length:7},(_,i)=>{const d=new Date(dayStart(i));
+    return `<button class="day" type="button" aria-pressed="${st.day===i}" data-a="day" data-d="${i}">${d.toLocaleDateString(loc(),{weekday:"short"})}<br><span style="font-family:var(--f-mono)">${d.getDate()}.</span></button>`}).join("");
+  const a=dayStart(st.day),b=dayStart(st.day+1),from=a+6*3600e3,span=18*3600e3,n=now();
+  $("lanes").innerHTML=M.map(id=>{
+    const os=occ(a,b,id);
+    const blocks=os.map(o=>{const l=Math.max(0,(o.s-from)/span*100),r=Math.min(100,(o.e-from)/span*100);if(r<=0||l>=100)return"";
+      return `<div class="blk${o.user===st.me?" mine":""}" style="left:${l}%;width:${Math.max(r-l,1)}%" title="${esc(o.user)} ${hm(o.s)}–${hm(o.e)}">${esc(o.user)}</div>`}).join("");
+    const nl=n>from&&n<from+span?`<div class="nowline" style="left:${(n-from)/span*100}%"></div>`:"";
+    const items=os.length?os.map(o=>`<li><span><span class="t">${hm(o.s)}–${hm(o.e)}</span> · <b>${esc(o.user)}</b>${o.weekly?` <span class="sub">(${t("weeklyTag")})</span>`:""}</span>${o.user===st.me?`<button type="button" data-a="unbook" data-id="${esc(o.id)}">${t("del")}</button>`:""}</li>`).join(""):`<li class="empty">${t("none")}</li>`;
+    return `<div class="lane"><h3>${t(id)}</h3><div class="track">${blocks}${nl}</div><div class="ticks"><span>06</span><span>12</span><span>18</span><span>24</span></div><ul class="list">${items}</ul></div>`;
+  }).join("");
+}
+function renderAct(){
+  const ws=(()=>{const d=new Date(now());d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime()})();
+  const cnt={};for(const l of st.log)if(l.action==="start"&&l.t>=ws)cnt[l.user]=(cnt[l.user]||0)+1;
+  const rows=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+  $("stats").innerHTML=rows.length?rows.map(([u,c])=>`<div class="stat"><span>${esc(u)}</span><b>${c} ${t("loads")}</b></div>`).join(""):`<div class="empty">${t("nolog")}</div>`;
+  const act={start:"aStart",free:"aFree",book:"aBook",unbook:"aUnbook"};
+  $("log").innerHTML=st.log.length?st.log.slice(0,15).map(l=>`<li><span><b>${esc(l.user)}</b> ${t(act[l.action]||l.action)} ${t(l.machine)}</span><span class="t">${new Date(l.t).toLocaleDateString(loc(),{weekday:"short"})} ${hm(l.t)}</span></li>`).join(""):`<li class="empty">${t("nolog")}</li>`;
+}
+function checkNotify(){
+  if(!$("notify").checked||!("Notification" in window)||Notification.permission!=="granted")return;
+  for(const id of M){const m=st.machines[id];
+    if(m&&m.user===st.me&&machineState(id)==="done"&&!st.notified.has(id+m.startedAt)){
+      st.notified.add(id+m.startedAt);try{new Notification("Villa Waschküche",{body:t("notifDone",{m:t(id)})})}catch(e){}}}
+}
+function render(){if(document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith("cus-"))return;renderMachines();renderCal();renderAct();checkNotify()}
+function renderQr(){
+  if(typeof qrcode!=="function"){$("qrs").innerHTML=`<p class="warn">${t("err")}</p>`;return}
+  const base=location.href.split("#")[0];
+  $("qrs").innerHTML=M.map(id=>{const q=qrcode(0,"M");q.addData(base+"#"+id);q.make();
+    return `<div class="qr"><b>${esc(T.de[id].toUpperCase())}</b>${q.createSvgTag({cellSize:6,margin:2,scalable:true})}<span>${LANGS.map(([l])=>esc(T[l][id])).filter((v,i,a)=>a.indexOf(v)===i&&v!==T.de[id]).join(" · ")}</span></div>`}).join("");
+}
+
+// ── Actions ────────────────────────────────────────────────────────────
+function showErr(elId,e){const el=$(elId);if(!el)return;el.textContent=e&&e.kind==="offline"?t("offline"):t("err");el.hidden=false}
+document.addEventListener("click",async ev=>{
+  const b=ev.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,id=b.dataset.m;
+  if(a==="open"){st.open=id;renderMachines();return}
+  if(a==="close"){st.open=null;renderMachines();return}
+  if(a==="prog"){st.prog[id]=b.dataset.p;delete st.custom[id];renderMachines();return}
+  if(a==="day"){st.day=+b.dataset.d;renderCal();return}
+  if(st.busy)return;st.busy=true;b.disabled=true;
+  try{
+    if(a==="go"){
+      const mins=Math.max(5,Math.min(400,Math.round(+$("cus-"+id).value)||60));
+      await api("wq_start",{p_machine:id,p_user:st.me,p_minutes:mins,p_prog:st.custom[id]?"":(st.prog[id]||"")});
+      st.open=null;if(location.hash)history.replaceState(null,"",location.pathname+location.search);
+    }else if(a==="free")await api("wq_free",{p_machine:id,p_user:st.me});
+    else if(a==="add")await api("wq_add",{p_machine:id,p_minutes:15});
+    else if(a==="unbook")await api("wq_unbook",{p_id:b.dataset.id,p_user:st.me});
+    await refresh();
+  }catch(e){if(e.kind==="bad_code")logout(t("badCode"));else{showErr("err-"+(id||""),e);if(!id){$("banner").textContent=t("err");$("banner").hidden=false}}}
+  finally{st.busy=false;b.disabled=false}
+});
+document.addEventListener("input",ev=>{
+  if(ev.target.id&&ev.target.id.startsWith("cus-")){const id=ev.target.id.slice(4);st.custom[id]=+ev.target.value;
+    document.querySelectorAll(`#m-${id} .chip`).forEach(c=>c.setAttribute("aria-pressed","false"))}
+});
+$("bform").addEventListener("submit",async ev=>{
+  ev.preventDefault();const msg=$("bMsg");msg.hidden=false;
+  const show=(txt,ok)=>{msg.textContent=txt;msg.className="msg "+(ok?"ok":"err")};
+  const machine=$("bMach").value,dur=+$("bDur").value,weekly=$("bWeekly").checked;
+  const [h,mi]=$("bTime").value.split(":").map(Number);const d=new Date(dayStart(st.day));d.setHours(h,mi,0,0);const s=d.getTime();
+  if(s<now()-5*60000){show(t("past"));return}
+  for(let k=0;k<(weekly?9:1);k++){const dd=new Date(s);dd.setDate(dd.getDate()+7*k);const ss=dd.getTime();
+    const c=occ(ss,ss+dur*60000,machine)[0];
+    if(c){show(t("overlap",{who:c.user,t:new Date(c.s).toLocaleDateString(loc(),{weekday:"short",day:"numeric"})+" "+hm(c.s)}));return}}
+  try{await api("wq_book",{p_machine:machine,p_start:s,p_dur:dur,p_weekly:weekly,p_user:st.me});show(t("booked"),true);await refresh()}
+  catch(e){if(e.kind==="overlap")show(t("taken"));else if(e.kind==="bad_code")logout(t("badCode"));else show(e.kind==="offline"?t("offline"):t("err"))}
+});
+function setLang(l){st.lang=l;ls("wq_lang",l);renderStatic();if(st.code)render()}
+$("lang").addEventListener("change",e=>setLang(e.target.value));
+$("lang0").addEventListener("change",e=>setLang(e.target.value));
+$("me").addEventListener("change",e=>{const v=e.target.value.trim().slice(0,20);if(!v){e.target.value=st.me;return}st.me=v;ls("wq_me",v);render()});
+$("notify").addEventListener("change",async e=>{
+  ls("wq_notify",e.target.checked?"1":"0");
+  if(e.target.checked&&"Notification" in window&&Notification.permission==="default"){try{await Notification.requestPermission()}catch(x){}}
+  if(e.target.checked&&(!("Notification" in window)||Notification.permission==="denied"))e.target.checked=false;
+});
+$("qrBtn").addEventListener("click",()=>{$("qrBox").hidden=!$("qrBox").hidden;if(!$("qrBox").hidden)renderQr()});
+$("printBtn").addEventListener("click",()=>window.print());
+$("logout").addEventListener("click",()=>logout());
+function logout(msg){st.code="";st.loaded=false;ls("wq_code",null);showLogin(msg)}
+
+// ── Boot ───────────────────────────────────────────────────────────────
+function showLogin(msg){
+  $("appView").hidden=true;$("loginView").hidden=false;$("name0").value=st.me;
+  const m=$("loginMsg");m.hidden=!msg;m.textContent=msg||"";
+}
+$("loginForm").addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  if(!configured()){$("loginMsg").textContent=t("setup");$("loginMsg").hidden=false;return}
+  st.code=$("code").value.trim();st.me=$("name0").value.trim().slice(0,20);
+  try{await api("wq_state",{});ls("wq_code",st.code);ls("wq_me",st.me);startApp()}
+  catch(e){st.code="";$("loginMsg").textContent=e.kind==="bad_code"?t("badCode"):e.kind==="offline"?t("offline"):t("err");$("loginMsg").hidden=false}
+});
+let timer=null;
+function startApp(){
+  $("loginView").hidden=true;$("appView").hidden=false;$("me").value=st.me;
+  const h=(location.hash||"").slice(1);if(M.includes(h))st.open=h;
+  renderStatic();render();refresh();
+  clearInterval(timer);timer=setInterval(()=>{if(document.visibilityState==="visible")refresh();else checkNotify()},10000);
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refresh()});
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(M.includes(h)&&st.code){st.open=h;renderMachines()}});
+(function(){
+  const saved=ls("wq_lang"),nav=(navigator.language||"en").slice(0,2);
+  st.lang=saved&&T[saved]?saved:(T[nav]?nav:"en");
+  st.me=ls("wq_me")||"";st.code=ls("wq_code")||"";
+  $("notify").checked=ls("wq_notify")==="1"&&"Notification" in window&&Notification.permission==="granted";
+  renderStatic();
+  if(!configured()){showLogin(t("setup"));return}
+  if(st.code&&st.me)startApp();else showLogin();
+})();
+</script>
+</body>
+</html>
